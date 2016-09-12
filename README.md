@@ -6,9 +6,8 @@ A RimWorld XML parser, reads all the XML files found in the `Core` directory in 
 ##Install
 
 * Download and install the latest [NodeJS]
-* Clone the repo
 * Follow the [Node Gyp setup guide]
-* Run `npm install` from the repo base directory
+* `npm i rimworld-definitions-parser --save-dev`
 
 ##Usage
 
