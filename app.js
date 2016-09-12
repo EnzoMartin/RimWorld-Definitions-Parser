@@ -13,7 +13,8 @@ const XML = require('./lib/parser');
 
 const level = pjson.logLevel || 30;
 const encoding = 'utf8';
-const distDirectory = path.join(__dirname,'dist');
+const projectRoot = process.cwd();
+const distDirectory = path.join(projectRoot,'dist');
 
 const logger = bunyan({
     name:pjson.name,
