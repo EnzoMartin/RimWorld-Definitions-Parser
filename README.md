@@ -1,7 +1,7 @@
 RimWorld Definitions Parser
 =======================
 
-A RimWorld XML parser, reads all the XML files found in the `Core` directory in the game's `Mods` and spits out JS moduls in the `dist` directory
+A RimWorld XML parser, reads all the XML files found in the `Core` directory in the game's `Mods` and spits out JS modules in the `dist` directory
 
 ##Install
 
