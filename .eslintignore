@@ -1,0 +1,5 @@
+coverage
+.idea
+temp
+dist
+local.js

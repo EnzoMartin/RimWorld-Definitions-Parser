@@ -1,0 +1,43 @@
+{
+  "name": "rimworld-definitions-parser",
+  "version": "1.0.0",
+  "description": "RimWorld Definitions XML to JS parser",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/EnzoMartin/RimWorld-Definitions-Parser.git"
+  },
+  "license": "MIT",
+  "author": "Enzo Martin <enzo.r.martin@gmail.com>",
+  "contributors": [
+    "Enzo Martin <enzo.r.martin@gmail.com>"
+  ],
+  "bugs": {
+    "url": "https://github.com/EnzoMartin/RimWorld-Definitions-Parser/issues"
+  },
+  "engines": {
+    "node": ">=6",
+    "npm": ">=3"
+  },
+  "main": "app.js",
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "test": "istanbul cover node_modules/mocha/bin/_mocha test/**/*.js -- --full-trace",
+    "test:watch": "node_modules/mocha/bin/_mocha --watch --full-trace",
+    "dev": "node local.js | bunyan -o short",
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "bunyan": "^1.8.1",
+    "rimraf": "^2.5.4",
+    "xml2js": "^0.4.16"
+  },
+  "devDependencies": {
+    "enzo-codestyle": "^2.0.0",
+    "eslint": "^3.2.2",
+    "expect": "^1.20.2",
+    "istanbul": "^0.4.5",
+    "mocha": "^3.0.2",
+    "proxyquire": "^1.7.10"
+  }
+}
