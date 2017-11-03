@@ -16,9 +16,12 @@ const encoding = 'utf8';
 const projectRoot = process.cwd();
 const distDirectory = path.join(projectRoot,'dist');
 
-const logger = bunyan({
-    name:pjson.name,
-    level
+const logger = bunyan.createLogger({
+  name:pjson.name,
+  level,
+  serializers: {
+    err: bunyan.stdSerializers.err
+  }
 });
 
 /**
@@ -27,7 +30,7 @@ const logger = bunyan({
  * @param {Number} percent
  */
 function inform(message,percent){
-    logger.info(`${message}.. ${percent.toFixed(2)}%`);
+  logger.info(`${message}.. ${percent.toFixed(2)}%`);
 }
 
 /**
@@ -36,71 +39,71 @@ function inform(message,percent){
  * @param {Number} totalFiles
  */
 function saveIndexes(indexes,totalFiles){
-    logger.info('Writing index files');
-    var percent = 0;
-    const dirNames = Object.keys(indexes);
-    const total = dirNames.length + 1;
-    const increment = 100 / total;
+  logger.info('Writing index files');
+  let percent = 0;
+  const dirNames = Object.keys(indexes);
+  const total = dirNames.length + 1;
+  const increment = 100 / total;
 
-    const promises = dirNames.map((directory) =>{
-        const promise = new Promise((resolve,reject) =>{
-            const savePath = path.join(distDirectory,directory,'index.js');
+  const promises = dirNames.map((directory) => {
+    const promise = new Promise((resolve,reject) => {
+      const savePath = path.join(distDirectory,directory,'index.js');
 
-            const modules = indexes[directory].map((module) =>{
-                const name = module.replace('.js','');
-                return `${name}:require('./${name}')`;
-            });
+      const modules = indexes[directory].map((module) => {
+        const name = module.replace('.js','');
+        return `${name}:require('./${name}')`;
+      });
 
-            const moduleExports = `module.exports={${modules.join(',')}};`;
+      const moduleExports = `module.exports={${modules.join(',')}};`;
 
-            fs.writeFile(savePath,moduleExports,{encoding},(err) =>{
-                if(err){
-                    reject(err);
-                } else {
-                    resolve();
-                }
-            });
-        });
-
-        promise.then(() =>{
-            percent += increment;
-            inform('Saving indexes',percent);
-        });
-
-        return promise;
+      fs.writeFile(savePath,moduleExports,{encoding},(err) => {
+        if(err){
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
     });
 
-    const mainIndex = new Promise((resolve,reject) =>{
-        const savePath = path.join(distDirectory,'index.js');
-
-        const modules = dirNames.map((name) =>{
-            return `${name}:require('./${name}')`;
-        });
-
-        const moduleExports = `module.exports={${modules.join(',')}};`;
-
-        fs.writeFile(savePath,moduleExports,{encoding},(err) =>{
-            if(err){
-                reject(err);
-            } else {
-                resolve();
-            }
-        });
+    promise.then(() => {
+      percent += increment;
+      inform('Saving indexes',percent);
     });
 
-    mainIndex.then(() =>{
-        percent += increment;
-        inform('Saving indexes',percent);
+    return promise;
+  });
+
+  const mainIndex = new Promise((resolve,reject) => {
+    const savePath = path.join(distDirectory,'index.js');
+
+    const modules = dirNames.map((name) => {
+      return `${name}:require('./${name}')`;
     });
 
-    promises.push(mainIndex);
+    const moduleExports = `module.exports={${modules.join(',')}};`;
 
-    Promise.all(promises).then(() =>{
-        const elapsed = process.hrtime(processTime);
-        logger.info(`Finished processing ${totalFiles} files across ${total} directories, took ${(elapsed[0] * 1000 + elapsed[1] / 1000000)}ms`);
-    },(err) =>{
-        throw err;
+    fs.writeFile(savePath,moduleExports,{encoding},(err) => {
+      if(err){
+        reject(err);
+      } else {
+        resolve();
+      }
     });
+  });
+
+  mainIndex.then(() => {
+    percent += increment;
+    inform('Saving indexes',percent);
+  });
+
+  promises.push(mainIndex);
+
+  Promise.all(promises).then(() => {
+    const elapsed = process.hrtime(processTime);
+    logger.info(`Finished processing ${totalFiles} files across ${total} directories, took ${(elapsed[0] * 1000 + elapsed[1] / 1000000)}ms`);
+  },(err) => {
+    throw err;
+  });
 }
 
 /**
@@ -109,37 +112,37 @@ function saveIndexes(indexes,totalFiles){
  * @param {Object} indexes
  */
 function saveDefinitions(definitions,indexes){
-    logger.info('Writing JS modules');
-    var percent = 0;
-    const total = definitions.length;
-    const increment = 100 / total;
+  logger.info('Writing JS modules');
+  let percent = 0;
+  const total = definitions.length;
+  const increment = 100 / total;
 
-    const promises = definitions.map((definition) =>{
-        const promise = new Promise((resolve,reject) =>{
-            const savePath = path.join(distDirectory,definition.dirName,definition.moduleName);
-            fs.writeFile(savePath,'module.exports=' + JSON.stringify(definition.xml),{encoding},(err) =>{
-                if(err){
-                    reject(err);
-                } else {
-                    resolve();
-                }
-            });
-        });
-
-        promise.then(() =>{
-            percent += increment;
-            inform('Saving files',percent);
-        });
-
-        return promise;
+  const promises = definitions.map((definition) => {
+    const promise = new Promise((resolve,reject) => {
+      const savePath = path.join(distDirectory,definition.dirName,definition.moduleName);
+      fs.writeFile(savePath,`module.exports=${JSON.stringify(definition.xml)}`,{encoding},(err) => {
+        if(err){
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
     });
 
-    Promise.all(promises).then(() =>{
-        logger.info('Finished writing modules');
-        saveIndexes(indexes,total);
-    },(err) =>{
-        throw err;
+    promise.then(() => {
+      percent += increment;
+      inform('Saving files',percent);
     });
+
+    return promise;
+  });
+
+  Promise.all(promises).then(() => {
+    logger.info('Finished writing modules');
+    saveIndexes(indexes,total);
+  },(err) => {
+    throw err;
+  });
 }
 
 /**
@@ -147,52 +150,52 @@ function saveDefinitions(definitions,indexes){
  * @param {Object} definitions
  */
 function createDirectories(definitions){
-    logger.info('Creating directories to save JS modules into');
-    const names = definitions.reduce((names,definition) =>{
-        names.dirs[definition.dirName] = true;
+  logger.info('Creating directories to save JS modules into');
+  const names = definitions.reduce((names,definition) => {
+    names.dirs[definition.dirName] = true;
 
-        // Build the module names to include in each index.js for a directory
-        names.indexes[definition.dirName] = names.indexes[definition.dirName] || [];
-        names.indexes[definition.dirName].push(definition.moduleName);
+    // Build the module names to include in each index.js for a directory
+    names.indexes[definition.dirName] = names.indexes[definition.dirName] || [];
+    names.indexes[definition.dirName].push(definition.moduleName);
 
-        return names;
-    },{
-        dirs:{},
-        indexes:{}
+    return names;
+  },{
+    dirs:{},
+    indexes:{}
+  });
+
+  const directoryNames = Object.keys(names.dirs);
+
+  let percent = 0;
+  const total = directoryNames.length;
+  const increment = 100 / total;
+
+  const promises = directoryNames.map((name) => {
+    const promise = new Promise((resolve,reject) => {
+      const directoryPath = path.join(distDirectory,name);
+      fs.mkdir(directoryPath,(err) => {
+        if(err){
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
     });
 
-    const directoryNames = Object.keys(names.dirs);
-
-    var percent = 0;
-    const total = directoryNames.length;
-    const increment = 100 / total;
-
-    const promises = directoryNames.map((name) =>{
-        const promise = new Promise((resolve,reject) =>{
-            const directoryPath = path.join(distDirectory,name);
-            fs.mkdir(directoryPath,(err) =>{
-                if(err){
-                    reject(err);
-                } else {
-                    resolve();
-                }
-            });
-        });
-
-        promise.then(() =>{
-            percent += increment;
-            inform('Creating directories',percent);
-        });
-
-        return promise;
+    promise.then(() => {
+      percent += increment;
+      inform('Creating directories',percent);
     });
 
-    Promise.all(promises).then(() =>{
-        logger.info(`Finished creating ${total} directories`);
-        saveDefinitions(definitions,names.indexes);
-    },(err) =>{
-        throw err;
-    });
+    return promise;
+  });
+
+  Promise.all(promises).then(() => {
+    logger.info(`Finished creating ${total} directories`);
+    saveDefinitions(definitions,names.indexes);
+  },(err) => {
+    throw err;
+  });
 }
 
 /**
@@ -200,17 +203,17 @@ function createDirectories(definitions){
  * @param {Object} definitions
  */
 function wipeDirectories(definitions){
-    logger.info('Wiping `dist` directory');
-    rimraf(distDirectory,(err) =>{
-        if(err){
-            throw err;
-        } else {
-            logger.info('Creating `dist` directory');
-            fs.mkdir(distDirectory,() =>{
-                createDirectories(definitions);
-            });
-        }
-    });
+  logger.info('Wiping `dist` directory');
+  rimraf(distDirectory,(err) => {
+    if(err){
+      throw err;
+    } else {
+      logger.info('Creating `dist` directory');
+      fs.mkdir(distDirectory,() => {
+        createDirectories(definitions);
+      });
+    }
+  });
 }
 
 /**
@@ -218,47 +221,47 @@ function wipeDirectories(definitions){
  * @param {Object} definitions
  */
 function loadDefinitions(definitions){
-    logger.info('Processing definitions from XML to JS');
-    var percent = 0;
-    const total = definitions.length;
-    const increment = 100 / total;
+  logger.info('Processing definitions from XML to JS');
+  let percent = 0;
+  const total = definitions.length;
+  const increment = 100 / total;
 
-    const promises = definitions.map((definition) =>{
-        const promise = new Promise((resolve,reject) =>{
-            fs.readFile(definition.path,{encoding},(err,contents) =>{
-                if(err){
-                    reject(err);
-                } else {
-                    XML.parse(contents,(err,xml) =>{
-                        if(err){
-                            reject(err);
-                        } else {
-                            resolve({
-                                dirName: definition.dirName,
-                                moduleName: definition.moduleName,
-                                name: definition.name,
-                                xml
-                            });
-                        }
-                    });
-                }
-            });
-        });
-
-        promise.then(() =>{
-            percent += increment;
-            inform('Processing',percent);
-        });
-
-        return promise;
+  const promises = definitions.map((definition) => {
+    const promise = new Promise((resolve,reject) => {
+      fs.readFile(definition.path,{encoding},(err,contents) => {
+        if(err){
+          reject(err);
+        } else {
+          XML.parse(contents,(err,xml) => {
+            if(err){
+              reject(err);
+            } else {
+              resolve({
+                dirName: definition.dirName,
+                moduleName: definition.moduleName,
+                name: definition.name,
+                xml
+              });
+            }
+          });
+        }
+      });
     });
 
-    Promise.all(promises).then((values) =>{
-        logger.info('Processing definitions to JS done');
-        wipeDirectories(values);
-    },(err) =>{
-        throw err;
+    promise.then(() => {
+      percent += increment;
+      inform('Processing',percent);
     });
+
+    return promise;
+  });
+
+  Promise.all(promises).then((values) => {
+    logger.info('Processing definitions to JS done');
+    wipeDirectories(values);
+  },(err) => {
+    throw err;
+  });
 }
 
 /**
@@ -266,70 +269,70 @@ function loadDefinitions(definitions){
  * @param {String} definitionsPath
  */
 function readDirectory(definitionsPath){
-    logger.info('Reading all definitions files and folders');
-    fs.readdir(definitionsPath,{encoding},(err,files) =>{
-        if(err){
-            throw err;
-        } else {
-            const promises = files.map((name) =>{
-                const filePath = path.join(definitionsPath,name);
-                return new Promise((resolve,reject) =>{
-                    fs.stat(filePath,(err,stats) =>{
-                        if(err){
-                            reject(err);
-                        } else {
-                            const isDirectory = stats.isDirectory();
-                            if(isDirectory){
-                                // Some directories are empty in the current game version
-                                fs.readdir(filePath,{encoding},(err,files) =>{
-                                    if(err){
-                                        reject(err);
-                                    } else {
-                                        resolve({
-                                            isDirectory,
-                                            files,
-                                            isEmpty: files.length === 0,
-                                            name
-                                        });
-                                    }
-                                });
-                            } else {
-                                resolve({
-                                    isDirectory,
-                                    name
-                                });
-                            }
-                        }
+  logger.info('Reading all definitions files and folders');
+  fs.readdir(definitionsPath,{encoding},(err,files) => {
+    if(err){
+      throw err;
+    } else {
+      const promises = files.map((name) => {
+        const filePath = path.join(definitionsPath,name);
+        return new Promise((resolve,reject) => {
+          fs.stat(filePath,(err,stats) => {
+            if(err){
+              reject(err);
+            } else {
+              const isDirectory = stats.isDirectory();
+              if(isDirectory){
+                // Some directories are empty in the current game version
+                fs.readdir(filePath,{encoding},(err,files) => {
+                  if(err){
+                    reject(err);
+                  } else {
+                    resolve({
+                      isDirectory,
+                      files,
+                      isEmpty: files.length === 0,
+                      name
                     });
+                  }
                 });
-            });
+              } else {
+                resolve({
+                  isDirectory,
+                  name
+                });
+              }
+            }
+          });
+        });
+      });
 
-            Promise.all(promises).then((values) =>{
-                logger.info('Verifying all found definitions contain data');
-                const definitions = values.reduce((files,dir) =>{
-                    if(dir.isDirectory && !dir.isEmpty){
-                        const dirPath = path.join(definitionsPath,dir.name);
-                        dir.files.forEach((name) =>{
-                            if(name.indexOf('.xml') !== -1){
-                                files.push({
-                                    dirName: dir.name,
-                                    moduleName: name.replace('.xml','.js'),
-                                    name,
-                                    path:path.join(dirPath,name)
-                                });
-                            }
-                        });
-                    }
-                    return files;
-                },[]);
-
-                logger.info('Finished creating list of files to read from');
-                loadDefinitions(definitions);
-            },(err) =>{
-                throw err;
+      Promise.all(promises).then((values) => {
+        logger.info('Verifying all found definitions contain data');
+        const definitions = values.reduce((files,dir) => {
+          if(dir.isDirectory && !dir.isEmpty){
+            const dirPath = path.join(definitionsPath,dir.name);
+            dir.files.forEach((name) => {
+              if(name.indexOf('.xml') !== -1){
+                files.push({
+                  dirName: dir.name,
+                  moduleName: name.replace('.xml','.js'),
+                  name,
+                  path:path.join(dirPath,name)
+                });
+              }
             });
-        }
-    });
+          }
+          return files;
+        },[]);
+
+        logger.info('Finished creating list of files to read from');
+        loadDefinitions(definitions);
+      },(err) => {
+        throw err;
+      });
+    }
+  });
 }
 
 /**
@@ -337,24 +340,24 @@ function readDirectory(definitionsPath){
  * @param {String} installPath
  */
 function start(installPath){
-    if(path.isAbsolute(installPath)){
-        const definitionsPath = path.join(installPath,'\\Mods\\Core\\Defs');
-        logger.info(`Verifying "${installPath}"`);
-        fs.access(definitionsPath,fs.constants.R_OK,(err) =>{
-            if(err){
-                throw new Error('Provided path is not read accessible or `\\Mods\\Core\\Defs` not found');
-            } else {
-                readDirectory(definitionsPath);
-            }
-        });
-    } else {
-        throw new Error('Need to provide an absolute path');
-    }
+  if(path.isAbsolute(installPath)){
+    const definitionsPath = path.join(installPath,'\\Mods\\Core\\Defs');
+    logger.info(`Verifying "${installPath}"`);
+    fs.access(definitionsPath,fs.constants.R_OK,(err) => {
+      if(err){
+        throw new Error('Provided path is not read accessible or `\\Mods\\Core\\Defs` not found');
+      } else {
+        readDirectory(definitionsPath);
+      }
+    });
+  } else {
+    throw new Error('Need to provide an absolute path');
+  }
 }
 
 module.exports = start;
 
 // If used from CLI
 if(process.argv.length > 2){
-    start(process.argv[2]);
+  start(process.argv[2]);
 }
